@@ -3,6 +3,7 @@
 //  300  < status redirect >
 //  400 <401 Unauthorized (get), 403 Forbidden(post,update,delete), 404 Not Found >
 //  500 < status server error >
+const bcrypt = require('bcrypt');
 
 const User = require('../models/Users')
 // create user 
@@ -12,8 +13,9 @@ const User = require('../models/Users')
 exports.createUser =async (req,res)=>{
     console.log('Creating user...');
     try {
-        const {name,email,phone} = req.body;
-        const user = {name:name,email:email,phone:phone}
+        const {name,email,phone,password} = req.body;
+        const hashedPassword = await bcrypt.hash(password,10)
+        const user = {name:name,email:email,phone:phone,password:hashedPassword}
         const newUser = new User(user)
         await newUser.save();
         res.status(200).json({
@@ -143,6 +145,42 @@ exports.deleteUserByID = async (req,res)=>{
         }
         res.status(200).json({
             message:'User delete successfully',
+        });
+        
+    } catch (error) {
+        console.error(`Error: ${error.message}`);
+        res.status(500).json({
+            message:'Server error',
+            error:error.message
+        });
+        
+    }
+}
+//  login 
+exports.loginUser = async (req,res)=>{
+    console.log("Login user...");
+    try {
+        const {email ,password} = req.body;
+        const user = await User.findOne({
+            email:email
+        })
+        console.log(user);
+        if (!user ){
+            return res.status(404).json({
+                message:'invalid email or password'
+            });
+        }
+        const isMatched = await bcrypt.compare(password,user.password)
+     
+
+        if (!isMatched ){
+            return res.status(404).json({
+                message:'invalid email or password'
+            });
+        }
+        return res.status(200).json({
+            message:'User login successfully',
+            user:user
         });
         
     } catch (error) {
