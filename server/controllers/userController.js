@@ -4,6 +4,7 @@
 //  400 <401 Unauthorized (get), 403 Forbidden(post,update,delete), 404 Not Found >
 //  500 < status server error >
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const User = require('../models/Users')
 // create user 
@@ -178,9 +179,20 @@ exports.loginUser = async (req,res)=>{
                 message:'invalid email or password'
             });
         }
+        const token = jwt.sign({
+            id:user._id
+
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn:'1h'
+        }
+
+    )
         return res.status(200).json({
             message:'User login successfully',
-            user:user
+            user:user,
+            token:token
         });
         
     } catch (error) {
@@ -191,4 +203,41 @@ exports.loginUser = async (req,res)=>{
         });
         
     }
+}
+
+exports.homePage = (req,res)=>{
+    console.log("Home page...");
+    res.status(200).json({
+        message:'Welcome to home page'
+    });
+}
+exports.profile=async (req,res)=>{
+    console.log("Profile page...");
+    authInfo = req.user;
+    id = authInfo.id;
+    user = await User.findById(id);
+    res.status(200).json({
+        message:'Welcome to profile page',
+        user:user
+    });
+
+}
+//  auth middleware
+exports.auThMiddleware = (req,res,next)=>{
+    const token = req.headers['authorization'];
+    if (!token){
+        return res.status(401).json({
+            message:'Unauthorized'
+        });
+    }
+    jwt.verify(token,process.env.JWT_SECRET,(err,decoded)=>{
+        if (err){
+            return res.status(401).json({
+                message:"Unauthorized"
+            })
+        }
+        req.user = decoded;
+        console.log(req.user);
+        next();
+    })
 }
